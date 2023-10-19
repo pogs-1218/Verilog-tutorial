@@ -1,0 +1,19 @@
+$date
+	Thu Oct 19 12:13:48 2023
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module hello_world $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+$end
+#0
+$dumpvars
+$end
+#5
