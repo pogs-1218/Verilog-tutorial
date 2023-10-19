@@ -7,8 +7,8 @@ initial begin
   $dumpfile("counter_tb.vcd");
   $dumpvars(0, counter_tb);
 
-  $display("time \t clk reset enable counter");
-  $monitor("%g \t %b %b . %b . %b", $time, clock, reset, enable, counter_out);
+  $display("time\t clk reset enable counter");
+  $monitor(" %g\t  %b    %b     %b     %b", $time, clock, reset, enable, counter_out);
   clock = 1;
   reset = 0;
   enable = 0;
