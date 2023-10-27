@@ -10,7 +10,7 @@
 // ...
 // 15: 0b0000_0001
 module led_wave_two(input clk,
-                    output reg[7:0] led);
+                    output reg [7:0] led);
   reg [3:0] led_index;
 
   initial led_index = 0;
