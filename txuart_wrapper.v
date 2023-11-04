@@ -17,14 +17,29 @@ l : 0110_1100 (0x6c)
 o : 0110_1111 (0x6f)
 \r : 0000_1101 (0x0d)
 \n : 0000_1010 (0x0a)
+
+Goal: Send a string on every second.
+      Redirect out wire to testbench.
+      If status is true, stop it.
 */
 module txuart_wrapper(input clk,
-                      input reset,
+                      output reg status,
                       output out);
-  localparam SENDIDLE = 0,
-             SENDSTART = 1,
-             SENDEND = 2;
+  // default: 100Mhz
+  // Clcck rate (Frequency) = # of pulses / 1 sec
+  parameter CLOCK_RATE_HZ = 100_000_000;
+  // default: 115,200bps
+  // bps = # of bits / 1 sec
+  parameter BAUDRATE = 115_200;
+
+  // localparam SENDIDLE = 0,
+  //            SENDSTART = 1,
+  //            SENDEND = 2;
   wire busy;
+
+  // for timer
+  reg tx_start;
+  reg [31:0] counter;
 
   // Send each character through this 8-bit bus
   reg [7:0] input_bus;
@@ -33,51 +48,42 @@ module txuart_wrapper(input clk,
   reg [8*7-1:0] str;
   reg [2:0] index;
 
-  reg [2:0] state;
+  // reg [2:0] state;
 
-  txuart tu0(.clk(clk),
-             .reset(reset),
-             .databus(input_bus),
-             .out(out));
-
-  /**
-  table
-    tick  busy reset  wrapper.state   uart.state   wrapper.input   uart.data
-     5     0     1      SENDIDLE        IDLE           0           9'h1ff
-     6     1     1      SENDSTART       START         0x68         0x68
-     7 .   1 .   1 .    SENDSTART       DATA          0x65         
-     8 .   1 .   1 .                                                 
-  */
-  
+  initial status = 1'b0; // temp
   initial index = 0;
-  initial state = SENDIDLE;
   initial str = "hello\r\n";
   initial input_bus = 8'd0;
   always @ (posedge clk) begin
-    $display("wrapper|[%b] [i:%0d] str: 0x%h | input: 0x%h",state, index, str[8*(7-index)-1 -: 8], input_bus);
-    if (reset && !busy) begin
+    if (tx_start && !busy) begin
+      $display("wrapper start");
       input_bus <= str[8*(7-index)-1 -: 8];
       index <= index + 1'b1;
-      state <= SENDSTART;
+      status <= 1'b1;
     end
-
-    case(state)
-    SENDSTART: begin
-      if (index >= 7)
-        state <= SENDEND;
-      else begin
-        input_bus <= str[8*(7-index)-1 -: 8];
-        index <= index + 1'b1;
-      end
-    end
-    SENDEND: begin
-      state <= SENDIDLE;
-    end
-    default: state <= SENDIDLE;
-    endcase
   end
 
-  assign busy = (state != SENDIDLE);
+  initial tx_start = 1'b0;
+  initial counter = 32'd0;
+  always @ (posedge clk) begin
+    if(counter == CLOCK_RATE_HZ - 1) begin
+      $display("wrapper| tx start!");
+      tx_start <= 1'b1;
+      counter <= 32'd0;
+    end
+    else begin
+      tx_start <= 1'b0;
+      counter <= counter + 1'b1;
+    end
+  end
 
+  // assign status = (index == 7);
+
+  txuart #(.CLOCKS_PER_BAUD(CLOCK_RATE_HZ/BAUDRATE))
+  tu0(.clk(clk),
+      .reset(tx_start),
+      .databus(input_bus),
+      .busy(busy),
+      .out(out));
+ 
 endmodule;
-
