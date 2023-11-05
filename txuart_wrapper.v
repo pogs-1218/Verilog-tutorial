@@ -1,4 +1,6 @@
 `include "txuart.v"
+
+`timescale 1ns/10ps
 `default_nettype none
 
 /*
@@ -55,6 +57,7 @@ module txuart_wrapper(input clk,
   initial str = "hello\r\n";
   initial input_bus = 8'd0;
   always @ (posedge clk) begin
+    // tick: 100000000
     if (tx_start && !busy) begin
       $display("wrapper start");
       input_bus <= str[8*(7-index)-1 -: 8];

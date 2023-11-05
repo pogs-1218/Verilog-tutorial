@@ -15,6 +15,7 @@
  data:
  stop:
 */
+`timescale 1ns/10ps
 `default_nettype none
 
 module txuart(input clk,
@@ -32,40 +33,62 @@ module txuart(input clk,
              STOP = 2'b11;
   reg [1:0] state;
   reg [8:0] buffer;
-  reg [2:0] index;
+  reg [3:0] index;
 
+  reg tmp;
   reg baud_stb;
   reg [31:0] baud_counter;
 
-  initial {state, buffer, index, busy} = {IDLE, 9'h1ff, 3'd0, 1'b0};
+  initial {state, buffer, index, busy} = {IDLE, 9'h1ff, 4'd0, 1'b0};
+
+  // baudrate control
+  initial baud_counter = 32'd0;
+  initial baud_stb = 1'b0;
+  initial tmp = 1'b0;
   always @ (posedge clk) begin
-    // $display("uart busy? : %b", busy);
-    // $display("uart| bus: %b", databus);
-    // $display("uart|[%b] index: %d , buffer: %b", state, index, buffer);
-    // $display("uart| baud counter: %0d , stb: %b", baud_counter, baud_stb);
+    if (tmp) begin
+      if (baud_counter >= CLOCKS_PER_BAUD - 1) begin
+        baud_stb <= 1'b1;
+        baud_counter <= 32'd0;
+      end
+      else begin
+        baud_stb <= 1'b0;
+        baud_counter <= baud_counter + 1'b1;
+      end
+    end
+  end
+
+  always @ (posedge clk) begin
+    // tick: 100 000 000
     if (reset && !busy) begin
-      $display("txuart start");
+      $display("%0t start---------", $time);
       state <= START;
       busy <= 1'b1;
+      tmp <= 1'b1;
     end
 
     case(state)
     IDLE: begin
-      {buffer, index} <= { 9'h1ff, 3'd0 };
+      {buffer, index} <= { 9'h1ff, 4'd0 };
       busy <= 1'b0;
     end
 
+    // tick: 100 000 001
     START: begin
+      $display("%0t | txuart start", $time);
       buffer <= {databus, 1'b0};
       state <= DATA;
     end
 
+    // tick: 100 000 002
+    // 2 -> 870 -> 1738 -> 2606
+    // s    d[0]   d[1]   d[2]
+    //  435   1304    2172
     DATA: begin
-      // $display("[stb: %b] buffer: 0x%0h(%b)",baud_stb, buffer, buffer);
-      if (index >= 7)
+      if (index >= 9)
         state <= STOP;
       else if (baud_stb) begin
-        $display(" buffer: 0x%0h(%b)",buffer, buffer);
+        $display("%0t | buffer: 0x%0h(%b)", $time, buffer, buffer);
         buffer <= { 1'b1, buffer[8:1] };
         index <= index + 1'b1;
       end
@@ -80,18 +103,5 @@ module txuart(input clk,
   end
 
   assign out = buffer[0];
-
-  // baudrate control
-  initial baud_counter = 32'd0;
-  always @ (posedge clk) begin
-    if (baud_counter == CLOCKS_PER_BAUD) begin
-      baud_stb <= 1'b1;
-      baud_counter <= 32'd0;
-    end
-    else if (baud_counter < CLOCKS_PER_BAUD) begin
-      baud_stb <= 1'b0;
-      baud_counter <= baud_counter + 1'b1;
-    end
-  end
 
 endmodule
